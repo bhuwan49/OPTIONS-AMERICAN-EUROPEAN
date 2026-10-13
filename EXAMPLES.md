@@ -1,6 +1,6 @@
 # optnlib examples
 
-Eighteen copy-pasteable examples. Each shows a **Parameters** block, the code,
+Twenty-one copy-pasteable examples. Each shows a **Parameters** block, the code,
 and the expected output in a comment.
 
 > All values below were produced with `optnlib==0.1.0` on CPython 3.14.
@@ -327,4 +327,91 @@ try:
     optnlib.price('c', -100, 100, 1.0, 0.05, 0.2)
 except InvalidInputError as exc:
     print(exc)   # spot S must be strictly positive; got -100
+```
+
+---
+
+## Example 19 — Continuous dividend yield `q` from an annual dividend
+
+**Parameters**
+
+- `S = 100`
+- Annual cash dividend per share `D = 4.00`
+- `q = D / S = 0.04`
+- European call: `flag = 'c'`, `K = 100`, `t = 1.0`, `r = 0.05`, `sigma = 0.2`
+
+`q` is the annualized, continuously compounded dividend yield. The simplest
+estimate is the proportional yield `q ≈ D / S`. (Over a discrete schedule the
+exact figure is `q = r − ln(F/S)/t` with `F` the dividend-adjusted forward.)
+
+```python
+import optnlib
+
+S, D = 100.0, 4.0
+q = D / S                       # 0.04
+optnlib.black_scholes_merton('c', 100, 100, 1.0, 0.05, 0.2, q=q)
+# 8.102643534463212
+```
+
+---
+
+## Example 20 — Building `divs` from real ex-dividend dates
+
+**Parameters**
+
+- `today = 2026-01-01`, `expiry = 2027-01-01` → `t = 1.0` year
+- Dividends: `$1.25` on `2026-04-15` and `$1.25` on `2026-10-15`
+- `divs = [(0.2849, 1.25), (0.7863, 1.25)]` (ACT/365 year fractions)
+- European call: `flag = 'c'`, `S = 100`, `K = 100`, `r = 0.05`, `sigma = 0.2`
+
+`divs` is a list of `(ex_time, amount)` pairs: `ex_time` is the time in years
+from now to the ex-dividend date, `amount` is cash per share.
+
+```python
+from datetime import date
+
+import optnlib
+
+today, expiry = date(2026, 1, 1), date(2027, 1, 1)
+t = (expiry - today).days / 365                      # 1.0
+divs = [
+    ((date(2026, 4, 15) - today).days / 365, 1.25),  # 0.2849
+    ((date(2026, 10, 15) - today).days / 365, 1.25), # 0.7863
+]
+
+optnlib.european_price('c', 100, 100, t, 0.05, 0.2, divs=divs)
+# 8.957235470754656
+
+optnlib.european_price('c', 100, 100, t, 0.05, 0.2,
+                       divs=divs, dividend_model='escrowed')
+# 8.957235470754654
+```
+
+---
+
+## Example 21 — Explicit `european_price(...)` API
+
+**Parameters**
+
+- `flag = 'c'`, `S = 100`, `K = 100`, `t = 1.0`, `r = 0.05`, `sigma = 0.2`
+- Signature: `european_price(flag, S, K, t, r, sigma, q=0.0, divs=None, dividend_model='forward')`
+
+```python
+import optnlib
+
+# No dividends: matches black_scholes
+optnlib.european_price('c', 100, 100, 1.0, 0.05, 0.2, q=0.0, divs=None)
+# 10.450583572185565
+
+# Continuous dividend yield
+optnlib.european_price('c', 100, 100, 1.0, 0.05, 0.2, q=0.03, divs=None)
+# 8.652528553942709
+
+# Discrete dividend: forward (default) vs escrowed
+optnlib.european_price('c', 100, 100, 1.0, 0.05, 0.2, divs=[(0.5, 2.0)])
+# 9.244683623230566
+
+optnlib.european_price('c', 100, 100, 1.0, 0.05, 0.2,
+                       divs=[(0.5, 2.0)], dividend_model='escrowed')
+# 9.244683623230578
 ```

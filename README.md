@@ -56,6 +56,10 @@ optnlib.american_price('p', 100, 100, 1.0, 0.05, 0.2)
 # Unified entry point
 optnlib.price('p', 100, 100, 1.0, 0.05, 0.2, style='american', method='lr')
 # 6.087222149481556
+
+# Explicit European API with a discrete dividend
+optnlib.european_price('c', 100, 100, 1.0, 0.05, 0.2, divs=[(0.5, 2.0)])
+# 9.244683623230566
 ```
 
 See [`EXAMPLES.md`](EXAMPLES.md) for 18 runnable examples covering every feature.
@@ -133,6 +137,50 @@ everything else uses central finite differences. Pass
 The Bjerksund-Stensland engine only accepts a continuous yield, so discrete
 schedules are folded into an equivalent yield `q_eff` consistent with the
 chosen model.
+
+## Turning real dividend data into `q` and `divs`
+
+**Continuous yield `q`** — the annualized, continuously compounded dividend
+yield. Given the annual cash dividend per share `D` (or an analyst's dividend
+yield `y = D/S`), the usual conversions are:
+
+- Proportional yield: `q ≈ D / S`.
+- If the quote is a simple annual rate `y`, `q = ln(1 + y)`.
+- Exactly, over a horizon `t` with a discrete schedule:
+  `q = r − ln(F / S) / t`, where
+  `F = S·e^{r·t} − Σ D_i·e^{r·(t − t_i)}` is the dividend-adjusted forward.
+  This is exactly the equivalent yield `optnlib` builds internally when it
+  folds `divs` into `q` for the BS2002 engine.
+
+```python
+import optnlib
+
+S, D = 100.0, 4.0            # $4.00 cash dividends per share per year
+q = D / S                    # 0.04
+optnlib.black_scholes_merton('c', 100, 100, 1.0, 0.05, 0.2, q=q)
+# 8.102643534463212
+```
+
+**Discrete schedule `divs`** — a list of `(ex_time, amount)` pairs, where
+`ex_time` is the time **in years** from now to the ex-dividend date and
+`amount` is the cash amount per share. Convert calendar dates with a day count
+such as ACT/365:
+
+```python
+from datetime import date
+
+today, expiry = date(2026, 1, 1), date(2027, 1, 1)
+t = (expiry - today).days / 365                       # 1.0
+divs = [
+    ((date(2026, 4, 15) - today).days / 365, 1.25),   # 0.2849
+    ((date(2026, 10, 15) - today).days / 365, 1.25),  # 0.7863
+]
+optnlib.european_price('c', 100, 100, t, 0.05, 0.2, divs=divs)
+# 8.957235470754656
+```
+
+Rules: `ex_time` must be `> 0`; entries with `ex_time > t` are ignored; a
+dividend exactly at `t` is included.
 
 ## American engines
 
