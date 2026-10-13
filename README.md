@@ -7,6 +7,37 @@ support for continuous dividend yields and discrete cash dividend schedules.
 top of the modeling conventions of [`py_vollib`](https://github.com/vollib/py_vollib),
 but as a standalone package with no third-party pricing dependency.
 
+## Hedging & risk management
+
+`optnlib.hedging` turns a portfolio of options + the underlying into a set of
+**signed trades** that neutralize delta / gamma / vega (or any chosen set of
+greeks) by solving the hedge matrix equation `A · w = −b`:
+
+```python
+from optnlib import hedging as h
+
+MKT = dict(S=100.0, t=0.25, r=0.05, sigma=0.25)
+pf = h.Portfolio([
+    h.OptionLeg(quantity=-10, flag='c', K=105, multiplier=100,
+                name='short call', **MKT),
+    h.Underlying(quantity=500, S=100, name='stock'),
+])
+
+plan = h.hedge(pf, [
+    h.Underlying(S=100, name='stock'),
+    h.OptionLeg(flag='c', K=100, multiplier=100, name='H1', **MKT),
+    h.OptionLeg(flag='p', K=110, multiplier=100, name='H2', **MKT),
+], greeks=('delta', 'gamma', 'vega'))
+
+print(plan.describe(decimals=2))
+#   stock   LONG   446.52 shares
+#   H1      LONG     2.18 contracts
+#   H2      LONG     9.09 contracts
+```
+
+- **Full guide:** [`HEDGING_README.md`](HEDGING_README.md)
+- **Worked examples:** [`HEDGING_EXAMPLES.md`](HEDGING_EXAMPLES.md)
+
 ## Features
 
 - **European options** — Black-Scholes, Black-Scholes-Merton (continuous yield),
@@ -21,6 +52,9 @@ but as a standalone package with no third-party pricing dependency.
   numerical greeks for American options and discrete dividends.
 - **Unified API** — one `price(...)` and one `greeks(...)` entry point, plus
   vollib-style aliases (`black_scholes`, `black_scholes_merton`, `black`).
+- **Hedging & risk** — `optnlib.hedging`: portfolios, dollar greeks, scenario
+  stress testing, Taylor P&L attribution, and delta/gamma/vega (or arbitrary
+  greek) hedge solving with descriptive long/short trade output.
 
 ## Installation
 
@@ -34,7 +68,7 @@ For development (tests):
 pip install -e ".[dev]"
 ```
 
-Requires Python `>=3.9,<3.13`.
+Requires Python `>=3.9,<3.15`.
 
 ## Quick start
 
