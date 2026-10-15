@@ -106,17 +106,22 @@ Portfolio before hedge:
 
 Required trades  (+ = go long, - = go short):
 --------------------------------------------------------------
-  stock                          LONG           446.52 shares
-  H1                             LONG             2.18 contracts
-  H2                             LONG             9.09 contracts
+  stock                          SHORT        0.007288 shares
+  H1                             LONG         5.319956 contracts
+  H2                             LONG         5.379814 contracts
 
 Residual greeks after hedge (target = 0):
-  delta  = -0.000000
+  delta  = +0.000000
   gamma  = +0.000000
   vega   = +0.000000
 Not neutralized (no degrees of freedom): theta, rho
 
-Summary: LONG 446.52 shares (stock), LONG 2.18 contracts (H1), LONG 9.09 contracts (H2)
+Solver  : lstsq  (rank 2/3, cond 1.86e+19, row-scaled)
+Note    : hedge matrix is rank-deficient (rank 2/3); the target is
+          still reachable, so the minimum-norm weights below are an exact
+          hedge (many equivalent solutions exist).
+
+Summary: SHORT 0.007288 shares (stock), LONG 5.319956 contracts (H1), LONG 5.379814 contracts (H2)
 ```
 
 The stock's row of the matrix is `[1, 0, 0]`:
@@ -130,7 +135,7 @@ legs reproduce the portfolio's greeks:
 
 ```python
 plan.to_portfolio().greeks()['delta']  # ≈ -90.107  (i.e. cancels the portfolio)
-print(plan.to_dict())                  # {'stock': 446.52, 'H1': 2.18, 'H2': 9.09}
+print(plan.to_dict())                  # {'stock': -0.00729, 'H1': 5.320, 'H2': 5.380}
 ```
 
 ---
@@ -198,9 +203,9 @@ Portfolio before hedge:
 
 Required trades  (+ = go long, - = go short):
 --------------------------------------------------------------
-  stock                          SHORT            0.01 shares
-  H1                             LONG             5.32 contracts
-  H2                             LONG             5.38 contracts
+  stock                          SHORT        0.007288 shares
+  H1                             LONG         5.319956 contracts
+  H2                             LONG         5.379814 contracts
 
 Residual greeks after hedge (target = 0):
   delta  = -0.000000
@@ -347,12 +352,12 @@ print(hedge_legs.describe())
 ```python
 from optnlib.exceptions import InvalidInputError
 
-# duplicate / linearly dependent instruments:
+# duplicate / linearly dependent instruments (when strict):
 h.hedge(pf, [
     h.OptionLeg(flag='c', K=100, name='A', **MKT),
     h.OptionLeg(flag='c', K=100, name='B', **MKT),
-], greeks=('delta', 'gamma'))
-# InvalidInputError: hedge matrix is singular: ...
+], greeks=('delta', 'gamma'), strict=True)
+# InvalidInputError: hedge matrix is singular or ill-conditioned: ...
 
 # unknown greek:
 h.hedge(pf, [h.Underlying(S=100)], greeks=('delta_v2',))

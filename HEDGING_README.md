@@ -46,15 +46,28 @@ The implementation is general:
 
 * **one row per greek**, **one column per hedge instrument**, each entry being
   that instrument's greek *per traded unit*;
-* a **square** system is solved exactly with `numpy.linalg.solve`;
-* an **over/under-determined** system (more instruments than greeks, or vice
-  versa) falls back to `numpy.linalg.lstsq` (minimum-norm weights when
-  under-determined);
-* a **singular** matrix raises `optnlib.exceptions.InvalidInputError` with an
-  explanatory message.
+* the matrix is first **row-scaled** (each greek row by its norm) and
+  **diagnosed** for rank and condition number;
+* the default ``method='auto'`` solves with `numpy.linalg.solve` only when the
+  system is square, full-rank and well-conditioned (``cond < 1e8``); otherwise
+  it falls back to the minimum-norm least-squares solution
+  (`numpy.linalg.lstsq`), returning a hedge with the smallest trade sizes among
+  all solutions that minimise the (scaled) residual;
+* pass ``strict=True`` if you want a rank-deficient or ill-conditioned matrix to
+  raise `optnlib.exceptions.InvalidInputError` instead;
+* override the solver with ``method='solve'``, ``'lstsq'`` or ``'pinv'`` if
+  required; ``use_scaling=False`` and ``cond_tol=...`` are also exposed.
 
 You can target any ordering/subset of `('delta', 'gamma', 'theta', 'vega',
 'rho')`, and you can set non-zero post-hedge targets via `target=`.
+
+**Caveat on gamma/vega collinearity:** for Black–Scholes, ``vega / gamma = S² σ t``
+is identical for every option sharing the same spot, volatility and expiry. If
+your hedge options all share expiry and implied vol, the (gamma, vega) rows of
+the matrix become collinear — so a delta/gamma/vega hedge is inherently
+rank-deficient and can only be satisfied in the least-squares sense. To get
+independent gamma and vega control, choose hedge options with different
+expiries or different vols.
 
 ## Quick start
 
@@ -92,17 +105,22 @@ Portfolio before hedge:
 
 Required trades  (+ = go long, - = go short):
 --------------------------------------------------------------
-  stock                          LONG           446.52 shares
-  H1                             LONG             2.18 contracts
-  H2                             LONG             9.09 contracts
+  stock                          SHORT        0.007288 shares
+  H1                             LONG         5.319956 contracts
+  H2                             LONG         5.379814 contracts
 
 Residual greeks after hedge (target = 0):
-  delta  = -0.000000
+  delta  = +0.000000
   gamma  = +0.000000
   vega   = +0.000000
 Not neutralized (no degrees of freedom): theta, rho
 
-Summary: LONG 446.52 shares (stock), LONG 2.18 contracts (H1), LONG 9.09 contracts (H2)
+Solver  : lstsq  (rank 2/3, cond 1.86e+19, row-scaled)
+Note    : hedge matrix is rank-deficient (rank 2/3); the target is
+          still reachable, so the minimum-norm weights below are an exact
+          hedge (many equivalent solutions exist).
+
+Summary: SHORT 0.007288 shares (stock), LONG 5.319956 contracts (H1), LONG 5.379814 contracts (H2)
 ```
 
 ## Concepts
@@ -183,7 +201,10 @@ plan = h.delta_hedge(portfolio, underlying=None)   # shorthand for a single-stoc
 | `rhs` | right-hand side `target − b` |
 | `residual` | post-hedge residual per constrained greek (≈ 0) |
 | `unused` | greeks that were not constrained |
-| `method` | `'solve'` or `'lstsq'` |
+| `method` | chosen solver: `'solve'`, `'lstsq'` or `'pinv'` |
+| `rank` | numerical rank of the (row-scaled) matrix |
+| `condition` | condition number of the (row-scaled) matrix |
+| `scaled` | whether row-scaling was applied |
 | `describe(decimals=None)` / `str(plan)` | formatted report |
 | `to_dict()` | `{instrument_name: signed_quantity}` |
 | `to_portfolio()` | the hedge trades as a `Portfolio` |

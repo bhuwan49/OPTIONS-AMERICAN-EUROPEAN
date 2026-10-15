@@ -104,13 +104,82 @@ def test_stock_row_is_unit_delta_row():
 
 
 def test_three_by_three_neutralizes_delta_gamma_vega():
+    # Options sharing spot/vol/expiry make the vega row collinear with the
+    # gamma row (vega/gamma = S**2 * sigma * t), so the matrix is rank-2 and
+    # the auto solver falls back to a minimum-norm least-squares hedge.
     pf = h.Portfolio([_short_call(), _stock(500)])
     plan = h.hedge(pf, _hedge_basket(), greeks=("delta", "gamma", "vega"))
+    assert plan.method == "lstsq"
+    assert plan.rank == 2 and plan.min_dim == 3
+    for g in ("delta", "gamma", "vega"):
+        assert plan.residual[g] == pytest.approx(0.0, abs=1e-6)
+    # A w = rhs to least-squares accuracy
+    assert np.allclose(plan.matrix.dot(plan.quantities), plan.rhs, atol=1e-6)
+
+
+def test_well_conditioned_square_system_uses_solve():
+    # Distinct expiries break the vega/gamma collinearity -> full rank.
+    pf = h.Portfolio([_short_call(), _stock(500)])
+    basket = [
+        h.Underlying(S=100.0, name="stock"),
+        h.OptionLeg(flag="c", K=100, multiplier=100, name="H1", **MKT),
+        h.OptionLeg(flag="p", K=95, multiplier=100, name="H2",
+                    **dict(MKT, t=0.35)),
+    ]
+    plan = h.hedge(pf, basket, greeks=("delta", "gamma", "vega"))
     assert plan.method == "solve"
+    assert plan.rank == 3 and plan.min_dim == 3
     for g in ("delta", "gamma", "vega"):
         assert plan.residual[g] == pytest.approx(0.0, abs=1e-8)
-    # A w = rhs exactly
-    assert np.allclose(plan.matrix.dot(plan.quantities), plan.rhs, atol=1e-9)
+
+
+def test_rank_deficient_inconsistent_returns_bounded_lstsq():
+    # Portfolio 3M/25%-vol, hedge options 6M/28%-vol: rank-2 AND inconsistent,
+    # so gamma/vega cannot be neutralized. Weights must stay bounded (the old
+    # naive solve returned ~1e18 offsets) and a warning must be reported.
+    pf = h.Portfolio([
+        h.OptionLeg(quantity=-10, flag="c", K=105, multiplier=100, name="sc",
+                    **MKT),
+        _stock(500),
+    ])
+    basket = [
+        h.Underlying(S=100.0, name="stock"),
+        h.OptionLeg(flag="c", K=100, multiplier=100, name="H1",
+                    S=100.0, t=0.50, r=0.05, sigma=0.28),
+        h.OptionLeg(flag="p", K=95, multiplier=100, name="H2",
+                    S=100.0, t=0.50, r=0.05, sigma=0.28),
+    ]
+    plan = h.hedge(pf, basket, greeks=("delta", "gamma", "vega"))
+    assert plan.method == "lstsq"
+    assert plan.rank == 2 and plan.min_dim == 3
+    assert np.all(np.isfinite(plan.quantities))
+    assert np.max(np.abs(plan.quantities)) < 1e6
+    # delta is in the span, so it is neutralized; gamma/vega are not.
+    assert plan.residual["delta"] == pytest.approx(0.0, abs=1e-6)
+    assert abs(plan.residual["gamma"]) > 1.0
+    assert "Warning" in plan.describe()
+
+
+def test_strict_raises_on_rank_deficient():
+    pf = h.Portfolio([_short_call(), _stock(500)])
+    with pytest.raises(InvalidInputError):
+        h.hedge(pf, _hedge_basket(), greeks=("delta", "gamma", "vega"),
+                strict=True)
+
+
+def test_method_override_forces_pinv():
+    pf = h.Portfolio([_short_call(), _stock(500)])
+    plan = h.hedge(pf, _hedge_basket(), greeks=("delta", "gamma", "vega"),
+                   method="pinv")
+    assert plan.method == "pinv"
+    for g in ("delta", "gamma", "vega"):
+        assert plan.residual[g] == pytest.approx(0.0, abs=1e-6)
+
+
+def test_unknown_method_raises():
+    pf = h.Portfolio([_short_call()])
+    with pytest.raises(InvalidInputError):
+        h.hedge(pf, _hedge_basket(), method="bogus")
 
 
 def test_delta_hedge_uses_negative_of_portfolio_delta():
@@ -141,12 +210,15 @@ def test_underdetermined_uses_lstsq_and_neutralizes():
     assert plan.residual["delta"] == pytest.approx(0.0, abs=1e-9)
 
 
-def test_singular_matrix_raises():
+def test_singular_matrix_raises_when_strict():
     pf = h.Portfolio([_short_call(), _stock(500)])
     dup = h.OptionLeg(flag="c", K=100, name="A", **MKT)
     dup2 = h.OptionLeg(flag="c", K=100, name="B", **MKT)
     with pytest.raises(InvalidInputError):
-        h.hedge(pf, [dup, dup2], greeks=("delta", "gamma"))
+        h.hedge(pf, [dup, dup2], greeks=("delta", "gamma"), strict=True)
+    # Non-strict default degrades gracefully to a least-squares hedge.
+    plan = h.hedge(pf, [dup, dup2], greeks=("delta", "gamma"))
+    assert plan.method == "lstsq"
 
 
 def test_unknown_greek_and_empty_inputs_raise():
@@ -186,4 +258,6 @@ def test_describe_decimals_option():
     pf = h.Portfolio([_short_call(), _stock(500)])
     plan = h.hedge(pf, _hedge_basket())
     text = plan.describe(decimals=2)
-    assert "446.52" in text or "446.51" in text
+    assert "5.32" in text and "5.38" in text
+    # rank/condition diagnostics are surfaced
+    assert "rank 2/3" in text and "cond" in text

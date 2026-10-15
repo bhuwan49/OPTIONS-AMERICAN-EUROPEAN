@@ -30,9 +30,9 @@ plan = h.hedge(pf, [
 ], greeks=('delta', 'gamma', 'vega'))
 
 print(plan.describe(decimals=2))
-#   stock   LONG   446.52 shares
-#   H1      LONG     2.18 contracts
-#   H2      LONG     9.09 contracts
+#   stock   SHORT    0.007 shares
+#   H1      LONG     5.320 contracts
+#   H2      LONG     5.380 contracts
 ```
 
 - **Full guide:** [`HEDGING_README.md`](HEDGING_README.md)
