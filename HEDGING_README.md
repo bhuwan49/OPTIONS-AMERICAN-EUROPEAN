@@ -231,4 +231,10 @@ plain language.
   and the reported weights are the minimum-norm solution; add `target=` if you
   want specific non-zero post-hedge exposures.
 
+For cases where a raw solve produces huge, mutually-offsetting trades (or
+fails), two **separate** builders are available — `hedge_ridge` (scikit-learn
+ridge, tunable `alpha`) and `hedge_optimize` (scipy constrained: position
+bounds, gross-exposure cap, transaction costs). See
+[`HEDGING_REGULARIZED.md`](HEDGING_REGULARIZED.md).
+
 See `HEDGING_EXAMPLES.md` (repo root) for runnable end-to-end examples.

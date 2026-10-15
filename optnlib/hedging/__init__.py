@@ -33,6 +33,7 @@ basket of hedge instruments::
 from .hedge import HedgeResult, delta_hedge, hedge
 from .instruments import OptionLeg, Underlying
 from .portfolio import Portfolio
+from .regularized import hedge_optimize, hedge_ridge
 
 __all__ = [
     "OptionLeg",
@@ -41,4 +42,6 @@ __all__ = [
     "HedgeResult",
     "hedge",
     "delta_hedge",
+    "hedge_ridge",
+    "hedge_optimize",
 ]

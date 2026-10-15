@@ -35,8 +35,15 @@ print(plan.describe(decimals=2))
 #   H2      LONG     5.380 contracts
 ```
 
+For hard cases — rank-deficient / ill-conditioned systems where a raw solve
+returns huge offsetting trades — use the separate regularized builders
+`h.hedge_ridge(...)` (scikit-learn ridge, tunable `alpha`) or
+`h.hedge_optimize(...)` (position bounds, gross-exposure cap, transaction
+costs).
+
 - **Full guide:** [`HEDGING_README.md`](HEDGING_README.md)
 - **Worked examples:** [`HEDGING_EXAMPLES.md`](HEDGING_EXAMPLES.md)
+- **Regularized & constrained:** [`HEDGING_REGULARIZED.md`](HEDGING_REGULARIZED.md)
 
 ## Features
 

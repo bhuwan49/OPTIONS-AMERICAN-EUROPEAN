@@ -92,11 +92,16 @@ class HedgeResult:
         ``min(matrix.shape)`` -- the largest rank the system could have.
     scaled : bool
         Whether the matrix was row-scaled before solving.
+    info : dict
+        Solver-specific diagnostics (e.g. the ridge ``alpha`` or the
+        optimizer's ``success``/``nit``/``objective``). Empty for the
+        closed-form solvers.
     """
 
     def __init__(self, instruments, quantities, greeks, matrix, rhs,
                  residual, portfolio_greeks, target, unused, method,
-                 rank=None, condition=None, min_dim=None, scaled=False):
+                 rank=None, condition=None, min_dim=None, scaled=False,
+                 info=None):
         self.instruments = instruments
         self.quantities = np.asarray(quantities, dtype=float)
         self.greeks = tuple(greeks)
@@ -111,6 +116,7 @@ class HedgeResult:
         self.condition = condition
         self.min_dim = min_dim
         self.scaled = scaled
+        self.info = dict(info or {})
 
     @property
     def full_rank(self):
@@ -189,6 +195,9 @@ class HedgeResult:
                          + ", ".join(self.unused))
         lines.append("")
         lines.append(self._solver_line())
+        info_line = self._info_line()
+        if info_line:
+            lines.append(info_line)
         warning = self._warning()
         if warning:
             lines.append(warning)
@@ -207,8 +216,24 @@ class HedgeResult:
         detail = ("  (" + ", ".join(bits) + ")") if bits else ""
         return "Solver  : %s%s" % (self.method, detail)
 
+    def _info_line(self):
+        """Method-specific diagnostics line for ridge/optimize hedges."""
+        if not self.info:
+            return None
+        if self.method == "ridge":
+            return "Ridge   : alpha=%g" % self.info.get("alpha")
+        if self.method == "optimize":
+            return ("Optimize: %s, success=%s, iters=%s, objective=%.4g"
+                    % (self.info.get("solver", ""),
+                       self.info.get("success"),
+                       self.info.get("nit"),
+                       self.info.get("objective")))
+        return None
+
     def _warning(self):
         """A plain-language note when the matrix was not solved exactly."""
+        if self.method in ("ridge", "optimize"):
+            return None
         if self.full_rank and self.well_conditioned:
             return None
         resid_norm = max((abs(v) for v in self.residual.values()), default=0.0)
