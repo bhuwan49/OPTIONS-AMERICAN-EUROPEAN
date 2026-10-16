@@ -63,6 +63,11 @@ def load_surface(ticker=None, chain=None, source="fetch", strike_range=(0.8, 1.2
     :param chain: an existing tidy chain DataFrame; skips the fetch.
     :param source: ``'fetch'`` (live Yahoo via yfinance) or ``'model'``
         (offline synthetic chain).
+    :param strike_range: ``(low, high)`` strike filter. With ``moneyness=True``
+        (default) the bounds are multiples of spot, e.g. ``(0.8, 1.2)``; with
+        ``moneyness=False`` they are **absolute strikes**, e.g. ``(80, 120)``.
+    :param moneyness: interpret ``strike_range`` as multiples of spot
+        (``True``, default) or as absolute strike prices (``False``).
     :param model_kwargs: extra keyword arguments for :func:`model_chain`.
     """
     if source not in ("fetch", "model"):
@@ -96,6 +101,10 @@ def volatility_smile(ticker=None, chain=None, source="fetch",
     Returns the :class:`VolSurface` so it can be queried directly; the figure,
     when drawn, is available as ``surface.figure``. ``layout`` is ``'grid'``
     (default, one panel per expiry) or ``'overlay'``.
+
+    ``strike_range`` is in moneyness multiples when ``moneyness=True``
+    (default), e.g. ``(0.8, 1.2)``; pass ``moneyness=False`` to use absolute
+    strike prices, e.g. ``(80, 120)``.
     """
     surf = load_surface(ticker=ticker, chain=chain, source=source,
                         strike_range=strike_range, dte_range=dte_range,
@@ -124,6 +133,10 @@ def volatility_surface(ticker=None, chain=None, source="fetch",
     price on the y-axis; a red dot marks the at-the-money point. Returns the
     :class:`VolSurface` so it can be queried directly; the figure, when drawn,
     is available as ``surface.figure``.
+
+    ``strike_range`` is in moneyness multiples when ``moneyness=True``
+    (default), e.g. ``(0.8, 1.2)``; pass ``moneyness=False`` to use absolute
+    strike prices, e.g. ``(80, 120)``.
     """
     surf = load_surface(ticker=ticker, chain=chain, source=source,
                         strike_range=strike_range, dte_range=dte_range,

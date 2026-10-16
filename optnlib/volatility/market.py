@@ -67,7 +67,12 @@ def _to_date(value):
 
 
 def _strike_mask(strikes, spot, strike_range, moneyness):
-    """Boolean mask keeping strikes inside ``strike_range``."""
+    """Boolean mask keeping strikes inside ``strike_range``.
+
+    ``moneyness=True`` treats the bounds as multiples of ``spot`` (e.g.
+    ``(0.8, 1.2)``); ``moneyness=False`` treats them as absolute strikes (e.g.
+    ``(80, 120)``).
+    """
     if strike_range is None:
         return np.ones(len(strikes), dtype=bool)
     lo, hi = strike_range
@@ -147,11 +152,14 @@ def fetch_chain(ticker, strike_range=None, dte_range=None, moneyness=True,
     """Fetch a tidy option chain for ``ticker`` from Yahoo Finance.
 
     :param ticker: Yahoo ticker symbol, e.g. ``'AAPL'``.
-    :param strike_range: ``(low, high)``. Interpreted as **moneyness**
-        multiples of spot when ``moneyness=True`` (default), e.g.
-        ``(0.8, 1.2)``; otherwise as absolute strikes.
+    :param strike_range: ``(low, high)`` strike filter. With
+        ``moneyness=True`` (default) the bounds are **moneyness** multiples of
+        spot, e.g. ``(0.8, 1.2)`` keeps 80%-120% of spot. With
+        ``moneyness=False`` the bounds are **absolute strike prices**, e.g.
+        ``(80, 120)``.
     :param dte_range: ``(min_days, max_days)`` to expiry (inclusive).
-    :param moneyness: interpret ``strike_range`` as multiples of spot.
+    :param moneyness: interpret ``strike_range`` as multiples of spot
+        (``True``, default) or as absolute strikes (``False``).
     :param r: risk-free rate; ``None`` tries ``^IRX``, else ``0.045``.
     :param q: dividend yield; ``None`` tries the ticker's metadata, else ``0``.
     :param max_expiries: keep at most this many (nearest) expiries.

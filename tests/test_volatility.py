@@ -232,6 +232,12 @@ def test_to_matrix_date_and_dte_columns(surface):
         (e - surface.reference_date).days for e in surface.expiries]
 
 
+def test_to_matrix_default_is_date(surface):
+    df = surface.to_matrix()
+    assert list(df.columns) == [e.isoformat() for e in surface.expiries]
+    assert df.columns.name == "Expiry"
+
+
 def test_to_matrix_bad_axis(surface):
     with pytest.raises(InvalidInputError, match="time_axis"):
         surface.to_matrix(time_axis="century")
@@ -240,10 +246,26 @@ def test_to_matrix_bad_axis(surface):
 def test_surface_table_prints(surface, capsys):
     df = v.surface_table(surface)
     out = capsys.readouterr().out
-    assert "Strike" in out and "Tenor" in out
+    assert "Strike" in out and "Expiry" in out
     assert df.shape == (len(surface.strikes), len(surface.expiries))
+
+
+def test_surface_table_years_override(surface, capsys):
+    v.surface_table(surface, time_axis="years", print_table=True)
+    out = capsys.readouterr().out
+    assert "Tenor" in out
 
 
 def test_surface_table_silent(surface, capsys):
     v.surface_table(surface, print_table=False)
     assert capsys.readouterr().out == ""
+
+
+def test_strike_mask_absolute_vs_moneyness():
+    strikes = np.array([80.0, 95.0, 100.0, 110.0, 120.0, 150.0])
+    as_moneyness = v.market._strike_mask(
+        strikes, spot=100.0, strike_range=(0.8, 1.2), moneyness=True)
+    as_absolute = v.market._strike_mask(
+        strikes, spot=100.0, strike_range=(80.0, 120.0), moneyness=False)
+    assert list(strikes[as_moneyness]) == [80.0, 95.0, 100.0, 110.0, 120.0]
+    assert list(strikes[as_moneyness]) == list(strikes[as_absolute])

@@ -42,7 +42,8 @@ v.plot_surface(surf, show_contours=True, atm_marker=True)
 from optnlib import volatility as v
 
 surf = v.volatility_surface(source="model")
-v.surface_table(surf, time_axis="years")
+v.surface_table(surf)                     # columns are ISO expiry dates (default)
+v.surface_table(surf, time_axis="years")  # or decimal-year columns
 v.plot_surface(surf)
 ```
 
@@ -53,6 +54,8 @@ from optnlib import volatility as v
 
 # 1) chain
 chain = v.fetch_chain("AAPL", strike_range=(0.8, 1.2), dte_range=(7, 180))
+# strike_range is moneyness multiples by default; use absolute strikes with:
+# chain = v.fetch_chain("AAPL", strike_range=(80, 120), moneyness=False)
 
 # 2) IVs
 frame = v.compute_iv_surface(chain)
@@ -89,15 +92,15 @@ v.plot_surface(surf, show_contours=True, atm_marker=True)   # 3-D surface
 
 | function | key params (chronology) | notes |
 |---|---|---|
-| `fetch_chain(ticker, ...)` | `strike_range`, `dte_range`, `moneyness=True`, `r`, `q`, `max_expiries`, `reference_date` | live via yfinance; falls back to IRX/div yield if None. `strike_range` is moneyness multiples when `moneyness=True`. |
+| `fetch_chain(ticker, ...)` | `strike_range`, `dte_range`, `moneyness=True`, `r`, `q`, `max_expiries`, `reference_date` | live via yfinance; falls back to IRX/div yield if None. `strike_range` = moneyness multiples when `moneyness=True` (e.g. `(0.8, 1.2)`), or **absolute strikes** when `moneyness=False` (e.g. `(80, 120)`). |
 | `model_chain(...)` | `spot,r,dtes,n_strikes,moneyness_range,base_vol,skew,curvature,term_slope,reference_date` | synthetic surface for offline/tests; recovered IVs match model. |
 | `compute_iv_surface(chain, ...)` | `spot,r,q,price_col="mid"`, `style="european"`, `method="bs2002"`, `errors="drop"\|"nan"`, `min_price` | adds `iv,t,moneyness,log_moneyness`. |
 | `VolSurface(frame, ...)` | `spot,rate,div_yield,reference_date` | interpolates `(log_moneyness,dte)` with `linear`/`cubic`/`nearest`; prefers OTM when call+put at same strike/expiry. |
 | `surf.iv(expiry,strike, method=...)` / `surf.iv_moneyness(m,dte, method=...)` | `method="linear"|"cubic"|"nearest"` | raises if outside traded grid (no extrapolation). |
 | `surf.smile(expiry)` / `surf.term_structure(strike)` | — | returns slice DataFrames. |
 | `surf.to_grid(n_dte,n_moneyness,method,...)` | grid resolution + `method` | for plotting/inspection. |
-| `surf.to_matrix(time_axis="years"\|"date"\|"dte", method="linear")` | columns by tenor | strike index (rows). |
-| `surface_table(..., time_axis, decimals=4, print_table=True)` | same as above | prints table unless `print_table=False`. |
+| `surf.to_matrix(time_axis="date"\|"years"\|"dte", method="linear")` | columns by tenor (**date** default) | strike index (rows). |
+| `surface_table(..., time_axis="date", decimals=4, print_table=True)` | same as above | prints table unless `print_table=False`. |
 | `plot_smile(..., layout="grid"\|"overlay", n_expiries=5, backend=None, ...)` | layout + selection | strike-only axis. |
 | `plot_surface(..., n_dte=40,n_moneyness=60,show_contours=False,atm_marker=True,backend=None,save,show,...)` | grid, contours, ATM marker | **time on X (years)**, **strike on Y**; plotly hover shows date. |
 | `volatility_smile` / `volatility_surface` | pass through fetch/model + plot params | one-call; return `VolSurface`, figure stored at `.figure`. `load_surface` = no plot. |
@@ -123,6 +126,8 @@ v.plot_surface(surf, show_contours=True, atm_marker=True)   # 3-D surface
 ## Notes
 
 - Interpolation in `(log_moneyness, days-to-expiry)`. No extrapolation — out of range raises `InvalidInputError`.
+- `strike_range=(low, high)` is read as **moneyness** multiples of spot by default (`moneyness=True`), e.g. `(0.8, 1.2)`. Pass `moneyness=False` to use **absolute strike prices**, e.g. `(80, 120)`.
+- Tables (`surface_table`, `to_matrix`) label tenor columns with **ISO expiry dates** by default; use `time_axis="years"` or `"dte"` for decimals/days. The 3-D surface axis stays in decimal years with the date shown on hover.
 - yfinance data can be delayed/incomplete; use `source="model"` for deterministic offline runs.
 - OTM preference keeps smiles clean when both call and put exist at the same strike/expiry.
 - Optional deps imported lazily. Install with `pip install "optnlib[vol]"` (`[market]`/`[viz]` also fine).

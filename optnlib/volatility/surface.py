@@ -370,12 +370,12 @@ class VolSurface:
         dates = [self.reference_date + timedelta(days=float(d)) for d in t1d]
         return {"moneyness": m1d, "dte": t1d, "dates": dates, "iv": IV}
 
-    def to_matrix(self, time_axis="years", method="linear"):
+    def to_matrix(self, time_axis="date", method="linear"):
         """Return the IV as a strike x tenor matrix (a tidy DataFrame).
 
         Rows are strike prices; columns are expiries labelled by ISO date
-        (``time_axis='date'``), days-to-expiry (``'dte'``) or decimal years
-        (``'years'``, default). Values are interpolated IVs.
+        (``time_axis='date'``, default), days-to-expiry (``'dte'``) or decimal
+        years (``'years'``). Values are interpolated IVs.
         """
         import pandas as pd
 
@@ -413,7 +413,7 @@ def _as_surface(surface):
     return surface if isinstance(surface, VolSurface) else VolSurface(surface)
 
 
-def surface_table(surface, time_axis="years", method="linear", decimals=4,
+def surface_table(surface, time_axis="date", method="linear", decimals=4,
                   print_table=True):
     """Return the strike x tenor IV matrix of ``surface`` as a DataFrame.
 
@@ -421,8 +421,8 @@ def surface_table(surface, time_axis="years", method="linear", decimals=4,
     pass ``print_table=False`` to only return it.
 
     :param surface: :class:`VolSurface` or a tidy IV DataFrame.
-    :param time_axis: columns labelled by ``'years'`` (default), ``'date'`` or
-        ``'dte'``.
+    :param time_axis: columns labelled by ISO ``date`` (default), ``'dte'`` or
+        ``'years'``.
     :param decimals: rounding used for the printed view.
     """
     df = _as_surface(surface).to_matrix(time_axis=time_axis, method=method)

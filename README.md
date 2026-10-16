@@ -51,7 +51,8 @@ costs).
 offline synthetic chain), computes implied vols, and plots the **smile** and the
 **3-D surface** (interactive plotly by default, matplotlib fallback). The smile
 is drawn as a grid of per-expiry panels; the surface puts time on the x-axis
-(full ISO dates by default) and can be queried at any expiry and strike:
+(decimal years, with the calendar date shown on hover) and can be queried at any
+expiry and strike:
 
 ```python
 from optnlib import volatility as v
@@ -63,7 +64,10 @@ surf.iv("2026-03-20", 195.0)      # interpolated IV at an exact date + strike
 surf.iv_moneyness(1.05, dte=45)   # IV at a moneyness + days-to-expiry
 surf.smile("2026-03-20")          # IV vs strike at one expiry
 surf.term_structure(195.0)        # IV vs expiry at one strike
-v.surface_table(surf)             # print the strike x tenor IV matrix
+v.surface_table(surf)             # strike x tenor IV matrix (ISO expiry columns)
+
+# strike_range is moneyness multiples by default; use absolute strikes with
+# v.volatility_surface("AAPL", strike_range=(80, 120), moneyness=False, ...)
 
 # offline demo (no network needed)
 v.volatility_surface(source="model", save="model_surface.html")
