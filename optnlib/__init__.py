@@ -26,7 +26,15 @@ Quick start
 See ``EXAMPLES.md`` for runnable examples covering every feature.
 """
 
-from . import american, core, dividends, european, exceptions, hedging
+from . import (
+    american,
+    core,
+    dividends,
+    european,
+    exceptions,
+    hedging,
+    volatility,
+)
 from .american import price as american_price
 from .european import (
     black,
@@ -90,4 +98,5 @@ __all__ = [
     "dividends",
     "exceptions",
     "hedging",
+    "volatility",
 ]

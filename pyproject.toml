@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.9,<3.15"
 license = { text = "MIT" }
 authors = [{ name = "optnlib" }]
-keywords = ["options", "american", "european", "black-scholes", "bjerksund", "implied-volatility", "greeks"]
+keywords = ["options", "american", "european", "black-scholes", "bjerksund", "implied-volatility", "greeks", "volatility-smile", "volatility-surface"]
 classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.9",
@@ -23,12 +23,27 @@ classifiers = [
 ]
 dependencies = ["numpy>=1.22", "scipy>=1.7"]
 
+[project.scripts]
+optnlib-volatility = "optnlib.volatility.cli:main"
+
 [project.optional-dependencies]
 ridge = ["scikit-learn>=1.0"]
-dev = ["pytest>=7.0", "scikit-learn>=1.0"]
+market = ["pandas>=1.5", "yfinance>=0.2", "openpyxl>=3.0"]
+viz = ["matplotlib>=3.5", "plotly>=5.0"]
+vol = [
+    "pandas>=1.5",
+    "yfinance>=0.2",
+    "openpyxl>=3.0",
+    "matplotlib>=3.5",
+    "plotly>=5.0",
+]
+dev = ["pytest>=7.0", "scikit-learn>=1.0", "pandas>=1.5", "matplotlib>=3.5"]
 
 [tool.setuptools.packages.find]
 include = ["optnlib*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+filterwarnings = [
+    "ignore:overflow encountered in dot:RuntimeWarning",
+]

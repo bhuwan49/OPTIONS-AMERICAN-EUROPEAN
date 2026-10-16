@@ -45,6 +45,43 @@ costs).
 - **Worked examples:** [`HEDGING_EXAMPLES.md`](HEDGING_EXAMPLES.md)
 - **Regularized & constrained:** [`HEDGING_REGULARIZED.md`](HEDGING_REGULARIZED.md)
 
+## Volatility smiles & surfaces
+
+`optnlib.volatility` fetches an option chain (live Yahoo via `yfinance`, or an
+offline synthetic chain), computes implied vols, and plots the **smile** and the
+**3-D surface** (matplotlib or interactive plotly). The 3-D time axis shows full
+ISO calendar dates by default, and the surface can be queried at any expiry and
+strike:
+
+```python
+from optnlib import volatility as v
+
+surf = v.volatility_surface("AAPL", strike_range=(0.8, 1.2),
+                            dte_range=(7, 180), backend="plotly",
+                            save="AAPL_surface.html")
+
+surf.iv("2026-03-20", 195.0)      # interpolated IV at an exact date + strike
+surf.iv_moneyness(1.05, dte=45)   # IV at a moneyness + days-to-expiry
+surf.smile("2026-03-20")          # IV vs strike at one expiry
+surf.term_structure(195.0)        # IV vs expiry at one strike
+
+# offline demo (no network needed)
+v.volatility_surface(source="model", backend="plotly",
+                     save="model_surface.html")
+```
+
+Command line:
+
+```bash
+python -m optnlib.volatility --ticker AAPL --mode both
+python -m optnlib.volatility --ticker SPY --backend plotly --save-dir ./out --show
+python -m optnlib.volatility --ticker NVDA --query 2026-03-20 195
+```
+
+Install the extras with `pip install "optnlib[vol]"`.
+
+- **Full guide:** [`VOLATILITY_README.md`](VOLATILITY_README.md)
+
 ## Features
 
 - **European options** — Black-Scholes, Black-Scholes-Merton (continuous yield),
@@ -62,12 +99,19 @@ costs).
 - **Hedging & risk** — `optnlib.hedging`: portfolios, dollar greeks, scenario
   stress testing, Taylor P&L attribution, and delta/gamma/vega (or arbitrary
   greek) hedge solving with descriptive long/short trade output.
+- **Volatility smiles & surfaces** — `optnlib.volatility`: fetch or synthesize an
+  option chain, compute implied vols, and plot/query smiles and 3-D surfaces
+  (matplotlib or plotly, ISO-date time axis), plus a `python -m` CLI.
 
 ## Installation
 
 ```bash
 pip install .
 ```
+
+Optional extras: `[market]` (pandas/yfinance/openpyxl for option data),
+`[viz]` (matplotlib/plotly for plotting), `[vol]` (both), `[ridge]`
+(scikit-learn for regularized hedging).
 
 For development (tests):
 
