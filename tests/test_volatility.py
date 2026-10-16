@@ -269,3 +269,10 @@ def test_strike_mask_absolute_vs_moneyness():
         strikes, spot=100.0, strike_range=(80.0, 120.0), moneyness=False)
     assert list(strikes[as_moneyness]) == [80.0, 95.0, 100.0, 110.0, 120.0]
     assert list(strikes[as_moneyness]) == list(strikes[as_absolute])
+
+
+def test_default_dte_range_is_all():
+    import inspect
+
+    for func in (v.load_surface, v.volatility_smile, v.volatility_surface):
+        assert inspect.signature(func).parameters["dte_range"].default is None

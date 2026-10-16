@@ -54,7 +54,7 @@ __all__ = [
 
 
 def load_surface(ticker=None, chain=None, source="fetch", strike_range=(0.8, 1.2),
-                 dte_range=(7, 365), moneyness=True, r=None, q=None,
+                 dte_range=None, moneyness=True, r=None, q=None,
                  max_expiries=None, reference_date=None, price_col="mid",
                  style="european", method="bs2002", model_kwargs=None):
     """Acquire a chain (or accept one) and return a :class:`VolSurface`.
@@ -66,6 +66,8 @@ def load_surface(ticker=None, chain=None, source="fetch", strike_range=(0.8, 1.2
     :param strike_range: ``(low, high)`` strike filter. With ``moneyness=True``
         (default) the bounds are multiples of spot, e.g. ``(0.8, 1.2)``; with
         ``moneyness=False`` they are **absolute strikes**, e.g. ``(80, 120)``.
+    :param dte_range: ``(min_days, max_days)`` to expiry (inclusive).
+        ``None`` (default) keeps **all** expiries the provider returns.
     :param moneyness: interpret ``strike_range`` as multiples of spot
         (``True``, default) or as absolute strike prices (``False``).
     :param model_kwargs: extra keyword arguments for :func:`model_chain`.
@@ -91,7 +93,7 @@ def load_surface(ticker=None, chain=None, source="fetch", strike_range=(0.8, 1.2
 
 
 def volatility_smile(ticker=None, chain=None, source="fetch",
-                     strike_range=(0.8, 1.2), dte_range=(7, 365),
+                     strike_range=(0.8, 1.2), dte_range=None,
                      moneyness=True, r=None, q=None, max_expiries=None,
                      reference_date=None, plot=True, backend=None,
                      layout="grid", save=None, show=False, n_expiries=5,
@@ -104,7 +106,8 @@ def volatility_smile(ticker=None, chain=None, source="fetch",
 
     ``strike_range`` is in moneyness multiples when ``moneyness=True``
     (default), e.g. ``(0.8, 1.2)``; pass ``moneyness=False`` to use absolute
-    strike prices, e.g. ``(80, 120)``.
+    strike prices, e.g. ``(80, 120)``. ``dte_range`` defaults to ``None``,
+    keeping **all** expiries the provider returns.
     """
     surf = load_surface(ticker=ticker, chain=chain, source=source,
                         strike_range=strike_range, dte_range=dte_range,
@@ -121,7 +124,7 @@ def volatility_smile(ticker=None, chain=None, source="fetch",
 
 
 def volatility_surface(ticker=None, chain=None, source="fetch",
-                       strike_range=(0.8, 1.2), dte_range=(7, 365),
+                       strike_range=(0.8, 1.2), dte_range=None,
                        moneyness=True, r=None, q=None, max_expiries=None,
                        reference_date=None, plot=True, backend=None,
                        show_contours=False, atm_marker=True, n_dte=40,
@@ -136,7 +139,8 @@ def volatility_surface(ticker=None, chain=None, source="fetch",
 
     ``strike_range`` is in moneyness multiples when ``moneyness=True``
     (default), e.g. ``(0.8, 1.2)``; pass ``moneyness=False`` to use absolute
-    strike prices, e.g. ``(80, 120)``.
+    strike prices, e.g. ``(80, 120)``. ``dte_range`` defaults to ``None``,
+    keeping **all** expiries the provider returns.
     """
     surf = load_surface(ticker=ticker, chain=chain, source=source,
                         strike_range=strike_range, dte_range=dte_range,

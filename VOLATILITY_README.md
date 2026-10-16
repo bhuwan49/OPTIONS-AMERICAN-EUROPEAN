@@ -127,6 +127,7 @@ v.plot_surface(surf, show_contours=True, atm_marker=True)   # 3-D surface
 
 - Interpolation in `(log_moneyness, days-to-expiry)`. No extrapolation — out of range raises `InvalidInputError`.
 - `strike_range=(low, high)` is read as **moneyness** multiples of spot by default (`moneyness=True`), e.g. `(0.8, 1.2)`. Pass `moneyness=False` to use **absolute strike prices**, e.g. `(80, 120)`.
+- `dte_range=None` (the default for `fetch_chain` and the wrappers) keeps **all** expiries the provider returns, including LEAPS; pass `(min_days, max_days)` to cap the horizon.
 - Tables (`surface_table`, `to_matrix`) label tenor columns with **ISO expiry dates** by default; use `time_axis="years"` or `"dte"` for decimals/days. The 3-D surface axis stays in decimal years with the date shown on hover.
 - yfinance data can be delayed/incomplete; use `source="model"` for deterministic offline runs.
 - OTM preference keeps smiles clean when both call and put exist at the same strike/expiry.

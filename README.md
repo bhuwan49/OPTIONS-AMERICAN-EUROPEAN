@@ -76,6 +76,7 @@ v.volatility_surface(source="model", save="model_surface.html")
 Install the extras with `pip install "optnlib[vol]"`.
 
 - **Full guide:** [`VOLATILITY_README.md`](VOLATILITY_README.md)
+- **Implied volatility guide (smiles & surfaces):** [`IMPLIED_VOLATILITY_README.md`](IMPLIED_VOLATILITY_README.md)
 
 ## Features
 
