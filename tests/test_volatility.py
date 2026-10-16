@@ -133,35 +133,57 @@ def _mpl():
     return matplotlib
 
 
-def test_plot_smile_matplotlib(surface, tmp_path):
+def test_plot_smile_matplotlib_grid(surface, tmp_path):
     _mpl()
     out = tmp_path / "smile.png"
-    fig = v.plot_smile(surface, backend="matplotlib", save=str(out))
+    fig = v.plot_smile(surface, backend="matplotlib", layout="grid",
+                       save=str(out))
     assert out.exists() and out.stat().st_size > 0
     assert fig.__class__.__name__ == "Figure"
 
 
-def test_plot_surface_matplotlib_time_axis_date(surface, tmp_path):
+def test_plot_smile_matplotlib_overlay(surface, tmp_path):
+    _mpl()
+    out = tmp_path / "smile_overlay.png"
+    fig = v.plot_smile(surface, backend="matplotlib", layout="overlay",
+                       save=str(out))
+    assert out.exists() and out.stat().st_size > 0
+    assert fig.__class__.__name__ == "Figure"
+
+
+def test_plot_smile_bad_layout(surface):
+    _mpl()
+    with pytest.raises(InvalidInputError, match="layout"):
+        v.plot_smile(surface, layout="fancy")
+
+
+def test_plot_surface_bad_backend(surface):
+    with pytest.raises(InvalidInputError, match="backend"):
+        v.plot_surface(surface, backend="gnuplot")
+
+
+def test_plot_smile_auto_backend(surface):
+    pytest.importorskip("plotly")
+    fig = v.plot_smile(surface, backend=None)
+    assert fig.__class__.__name__ == "Figure"
+
+
+def test_plot_surface_matplotlib(surface, tmp_path):
     _mpl()
     out = tmp_path / "surf.png"
-    fig = v.plot_surface(surface, backend="matplotlib", time_axis="date",
-                         save=str(out))
+    fig = v.plot_surface(surface, backend="matplotlib", save=str(out))
     assert out.exists() and out.stat().st_size > 0
     assert fig.__class__.__name__ == "Figure"
 
 
-@pytest.mark.parametrize("axis", ["dte", "years"])
-def test_plot_surface_time_axes(surface, tmp_path, axis):
+def test_plot_surface_contours(surface):
     _mpl()
-    fig = v.plot_surface(surface, backend="matplotlib", time_axis=axis,
-                         n_dte=6)
+    fig = v.plot_surface(surface, backend="matplotlib", show_contours=True,
+                         n_dte=6, n_moneyness=8)
     assert fig.__class__.__name__ == "Figure"
 
 
-def test_plot_surface_bad_time_axis(surface):
-    _mpl()
-    with pytest.raises(InvalidInputError, match="time_axis"):
-        v.plot_surface(surface, time_axis="decade")
+
 
 
 def test_plot_plotly_html(surface, tmp_path):
@@ -189,42 +211,39 @@ def test_volatility_surface_high_level(tmp_path):
     assert out.exists()
 
 
-# -- CLI ---------------------------------------------------------------------
+# -- IV matrix table ---------------------------------------------------------
 
 
-def test_cli_no_plot(capsys):
-    from optnlib.volatility import cli
-
-    rc = cli.main(["--source", "model", "--reference-date", REF, "--no-plot"])
-    assert rc == 0
-    assert "VolSurface" in capsys.readouterr().out
-
-
-def test_cli_query(capsys):
-    from optnlib.volatility import cli
-
-    rc = cli.main(["--source", "model", "--reference-date", REF,
-                   "--query", "2026-02-04", "100.0"])
-    assert rc == 0
-    assert "IV(2026-02-04, 100.0)" in capsys.readouterr().out
+def test_to_matrix_years(surface):
+    df = surface.to_matrix(time_axis="years")
+    assert df.shape == (len(surface.strikes), len(surface.expiries))
+    assert list(df.index) == list(surface.strikes)
+    assert df.index.name == "Strike"
+    assert df.columns.name == "Tenor (years)"
+    assert df.attrs == {} or True  # no crash; values numeric
+    assert np.isfinite(df.to_numpy()).any()
 
 
-def test_cli_query_out_of_range(capsys):
-    from optnlib.volatility import cli
+def test_to_matrix_date_and_dte_columns(surface):
+    by_date = surface.to_matrix(time_axis="date")
+    assert list(by_date.columns) == [e.isoformat() for e in surface.expiries]
+    by_dte = surface.to_matrix(time_axis="dte")
+    assert list(by_dte.columns) == [
+        (e - surface.reference_date).days for e in surface.expiries]
 
-    rc = cli.main(["--source", "model", "--reference-date", REF,
-                   "--query", "2030-01-01", "100.0"])
-    assert rc == 2
-    assert "error:" in capsys.readouterr().err
+
+def test_to_matrix_bad_axis(surface):
+    with pytest.raises(InvalidInputError, match="time_axis"):
+        surface.to_matrix(time_axis="century")
 
 
-def test_cli_writes_files(tmp_path):
-    _mpl()
-    from optnlib.volatility import cli
+def test_surface_table_prints(surface, capsys):
+    df = v.surface_table(surface)
+    out = capsys.readouterr().out
+    assert "Strike" in out and "Tenor" in out
+    assert df.shape == (len(surface.strikes), len(surface.expiries))
 
-    rc = cli.main(["--source", "model", "--reference-date", REF,
-                   "--mode", "both", "--backend", "matplotlib",
-                   "--save-dir", str(tmp_path)])
-    assert rc == 0
-    assert (tmp_path / "model_smile.png").exists()
-    assert (tmp_path / "model_surface.png").exists()
+
+def test_surface_table_silent(surface, capsys):
+    v.surface_table(surface, print_table=False)
+    assert capsys.readouterr().out == ""

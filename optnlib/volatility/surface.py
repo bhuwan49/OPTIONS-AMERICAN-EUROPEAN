@@ -19,7 +19,7 @@ import numpy as np
 
 from ..exceptions import InvalidInputError
 
-__all__ = ["VolSurface", "compute_iv_surface"]
+__all__ = ["VolSurface", "compute_iv_surface", "surface_table"]
 
 _SURFACE_COLUMNS = ["expiry", "dte", "t", "strike", "flag", "moneyness",
                     "log_moneyness", "mid", "iv"]
@@ -370,7 +370,62 @@ class VolSurface:
         dates = [self.reference_date + timedelta(days=float(d)) for d in t1d]
         return {"moneyness": m1d, "dte": t1d, "dates": dates, "iv": IV}
 
+    def to_matrix(self, time_axis="years", method="linear"):
+        """Return the IV as a strike x tenor matrix (a tidy DataFrame).
+
+        Rows are strike prices; columns are expiries labelled by ISO date
+        (``time_axis='date'``), days-to-expiry (``'dte'``) or decimal years
+        (``'years'``, default). Values are interpolated IVs.
+        """
+        import pandas as pd
+
+        if time_axis not in ("date", "dte", "years"):
+            raise InvalidInputError(
+                "time_axis must be 'date', 'dte' or 'years'")
+
+        strikes = self.strikes
+        xs = np.log(strikes / self.spot)
+        cols = {}
+        for exp in self.expiries:
+            dte = (exp - self.reference_date).days
+            vals = self._query_many(xs, np.full(xs.shape, float(dte)), method)
+            if time_axis == "date":
+                key = exp.isoformat()
+            elif time_axis == "dte":
+                key = int(dte)
+            else:
+                key = round(dte / 365.0, 3)
+            cols[key] = vals
+
+        df = pd.DataFrame(cols, index=strikes)
+        df.index.name = "Strike"
+        df.columns.name = {"date": "Expiry", "dte": "DTE (days)",
+                           "years": "Tenor (years)"}[time_axis]
+        return df
+
     def __repr__(self):
         return ("VolSurface(ticker=%r, %d contracts, %d expiries, "
                 "%d strikes)" % (self.ticker, len(self.frame),
                                  len(self.expiries), len(self.strikes)))
+
+
+def _as_surface(surface):
+    return surface if isinstance(surface, VolSurface) else VolSurface(surface)
+
+
+def surface_table(surface, time_axis="years", method="linear", decimals=4,
+                  print_table=True):
+    """Return the strike x tenor IV matrix of ``surface`` as a DataFrame.
+
+    By default the matrix is also printed to stdout (rounded to ``decimals``);
+    pass ``print_table=False`` to only return it.
+
+    :param surface: :class:`VolSurface` or a tidy IV DataFrame.
+    :param time_axis: columns labelled by ``'years'`` (default), ``'date'`` or
+        ``'dte'``.
+    :param decimals: rounding used for the printed view.
+    """
+    df = _as_surface(surface).to_matrix(time_axis=time_axis, method=method)
+    if print_table:
+        print(df.round(decimals).to_string())
+    return df

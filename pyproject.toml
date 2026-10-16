@@ -23,9 +23,6 @@ classifiers = [
 ]
 dependencies = ["numpy>=1.22", "scipy>=1.7"]
 
-[project.scripts]
-optnlib-volatility = "optnlib.volatility.cli:main"
-
 [project.optional-dependencies]
 ridge = ["scikit-learn>=1.0"]
 market = ["pandas>=1.5", "yfinance>=0.2", "openpyxl>=3.0"]

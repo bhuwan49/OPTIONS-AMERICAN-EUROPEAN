@@ -12,12 +12,12 @@ Typical use::
 
     # fetch + compute + plot in one call; keeps the queryable surface
     surf = v.volatility_surface("AAPL", strike_range=(0.8, 1.2),
-                                dte_range=(7, 180), backend="plotly",
-                                save="AAPL_surface.html")
+                                dte_range=(7, 180), save="AAPL_surface.html")
 
     surf.iv("2026-03-20", 195.0)      # IV at an exact date + strike
     surf.iv_moneyness(1.05, dte=45)   # IV at a moneyness + days-to-expiry
     surf.smile("2026-03-20")          # IV vs strike at one expiry
+    v.surface_table(surf)             # print the strike x tenor IV matrix
 
     # smile only
     v.volatility_smile("SPY", backend="matplotlib", save="spy_smile.png")
@@ -27,8 +27,7 @@ Typical use::
     frame = v.compute_iv_surface(chain)
 
     # offline demo (no network)
-    surf = v.volatility_surface(source="model", backend="plotly",
-                                save="model_surface.html")
+    surf = v.volatility_surface(source="model", save="model_surface.html")
 
 The market-data and plotting dependencies are optional and imported lazily;
 install them with ``pip install optnlib[vol]``.
@@ -37,11 +36,12 @@ install them with ``pip install optnlib[vol]``.
 from ..exceptions import InvalidInputError
 from .market import export_chain, fetch_chain, model_chain
 from .plot import plot_smile, plot_surface
-from .surface import VolSurface, compute_iv_surface
+from .surface import VolSurface, compute_iv_surface, surface_table
 
 __all__ = [
     "VolSurface",
     "compute_iv_surface",
+    "surface_table",
     "fetch_chain",
     "export_chain",
     "model_chain",
@@ -88,13 +88,14 @@ def load_surface(ticker=None, chain=None, source="fetch", strike_range=(0.8, 1.2
 def volatility_smile(ticker=None, chain=None, source="fetch",
                      strike_range=(0.8, 1.2), dte_range=(7, 365),
                      moneyness=True, r=None, q=None, max_expiries=None,
-                     reference_date=None, plot=True, backend="matplotlib",
-                     save=None, show=False, n_expiries=6, title=None,
-                     model_kwargs=None):
+                     reference_date=None, plot=True, backend=None,
+                     layout="grid", save=None, show=False, n_expiries=5,
+                     title=None, model_kwargs=None):
     """Build a :class:`VolSurface` and (by default) plot its smile.
 
     Returns the :class:`VolSurface` so it can be queried directly; the figure,
-    when drawn, is available as ``surface.figure``.
+    when drawn, is available as ``surface.figure``. ``layout`` is ``'grid'``
+    (default, one panel per expiry) or ``'overlay'``.
     """
     surf = load_surface(ticker=ticker, chain=chain, source=source,
                         strike_range=strike_range, dte_range=dte_range,
@@ -105,22 +106,24 @@ def volatility_smile(ticker=None, chain=None, source="fetch",
     surf.figure = None
     if plot:
         surf.figure = plot_smile(surf, n_expiries=n_expiries, backend=backend,
-                                 save=save, show=show, title=title,
-                                 moneyness=moneyness)
+                                 layout=layout, save=save, show=show,
+                                 title=title)
     return surf
 
 
 def volatility_surface(ticker=None, chain=None, source="fetch",
                        strike_range=(0.8, 1.2), dte_range=(7, 365),
                        moneyness=True, r=None, q=None, max_expiries=None,
-                       reference_date=None, plot=True, backend="matplotlib",
-                       time_axis="date", x_axis="moneyness", n_dte=40,
+                       reference_date=None, plot=True, backend=None,
+                       show_contours=False, atm_marker=True, n_dte=40,
                        n_moneyness=60, interp="linear", save=None, show=False,
                        title=None, model_kwargs=None):
     """Build a :class:`VolSurface` and (by default) plot the 3-D surface.
 
-    Returns the :class:`VolSurface` so it can be queried directly; the figure,
-    when drawn, is available as ``surface.figure``.
+    The surface is drawn with time (decimal years) on the x-axis and strike
+    price on the y-axis; a red dot marks the at-the-money point. Returns the
+    :class:`VolSurface` so it can be queried directly; the figure, when drawn,
+    is available as ``surface.figure``.
     """
     surf = load_surface(ticker=ticker, chain=chain, source=source,
                         strike_range=strike_range, dte_range=dte_range,
@@ -130,8 +133,9 @@ def volatility_surface(ticker=None, chain=None, source="fetch",
                         model_kwargs=model_kwargs)
     surf.figure = None
     if plot:
-        surf.figure = plot_surface(surf, backend=backend, time_axis=time_axis,
-                                   x_axis=x_axis, n_dte=n_dte,
+        surf.figure = plot_surface(surf, backend=backend,
+                                   show_contours=show_contours,
+                                   atm_marker=atm_marker, n_dte=n_dte,
                                    n_moneyness=n_moneyness, method=interp,
                                    save=save, show=show, title=title)
     return surf

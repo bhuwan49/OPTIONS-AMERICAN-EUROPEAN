@@ -11,7 +11,7 @@ The pipeline has four stages, each of which you can use on its own:
 | 1. data | `fetch_chain(...)` / `model_chain(...)` | live (Yahoo) or synthetic tidy chain |
 | 2. IV   | `compute_iv_surface(...)` | one implied vol per contract |
 | 3. model| `VolSurface(...)` | interpolate + query (`iv`, `smile`, ...) |
-| 4. plot | `plot_smile(...)` / `plot_surface(...)` | matplotlib or interactive plotly |
+| 4. plot | `plot_smile(...)` / `plot_surface(...)` | interactive plotly (default) or matplotlib |
 
 The convenience wrappers `volatility_smile(...)` and `volatility_surface(...)`
 run all four stages in one call and return the queryable `VolSurface`.
@@ -31,12 +31,13 @@ run all four stages in one call and return the queryable `VolSurface`.
 from optnlib import volatility as v
 
 surf = v.volatility_surface("AAPL", strike_range=(0.8, 1.2),
-                            dte_range=(7, 180), backend="plotly",
-                            save="AAPL_surface.html", show=False)
+                            dte_range=(7, 180), save="AAPL_surface.html",
+                            show=False)
 print(surf)                       # VolSurface(ticker='AAPL', <n> contracts, ...)
 
 surf.iv("2026-03-20", 195.0)      # IV at an exact expiry date and strike
 surf.iv_moneyness(1.05, dte=45)   # IV at a moneyness multiple and days-to-expiry
+v.surface_table(surf)             # strike × tenor IV matrix
 ```
 
 ### Offline (no network, no data files)
@@ -44,50 +45,13 @@ surf.iv_moneyness(1.05, dte=45)   # IV at a moneyness multiple and days-to-expir
 ```python
 from optnlib import volatility as v
 
-surf = v.volatility_surface(source="model", backend="plotly",
-                            save="model_surface.html", show=False)
+surf = v.volatility_surface(source="model", save="model_surface.html",
+                            show=False)
+v.surface_table(surf)
 ```
 
 `source="model"` builds a synthetic chain with a smooth, known IV surface and
 prices it with optnlib's own Black-Scholes engine — handy for demos and tests.
-
-### Command line
-
-```bash
-# fetch + plot both smile and surface (prompts for the ticker if omitted)
-python -m optnlib.volatility
-
-# explicit ticker, interactive HTML, custom window
-python -m optnlib.volatility --ticker SPY --mode surface \
-    --backend plotly --save-dir ./out --show
-
-# exact IV lookup for a date + strike, then exit
-python -m optnlib.volatility --ticker NVDA --query 2026-03-20 195
-
-# offline demo
-python -m optnlib.volatility --source model --mode both
-```
-
-The installed console script `optnlib-volatility` is equivalent to
-`python -m optnlib.volatility`.
-
-| flag | default | meaning |
-|---|---|---|
-| `--ticker`, `-t` | prompt / `AAPL` | underlying symbol |
-| `--source` | `fetch` | `fetch` (Yahoo) or `model` (synthetic) |
-| `--mode` | `both` | `smile`, `surface` or `both` |
-| `--strike-range LO HI` | `0.8 1.2` | moneyness window (or absolute strikes with `--absolute-strikes`) |
-| `--dte-range MIN MAX` | `7 365` | days-to-expiry window |
-| `--r`, `--q` | `0.045`, `0.0` | rate and dividend yield |
-| `--max-expiries` | — | cap the number of expiries |
-| `--reference-date` | today | ISO date treated as "today" |
-| `--backend` | `matplotlib` | `matplotlib` (png/pdf) or `plotly` (html) |
-| `--time-axis` | `date` | `date` (ISO), `dte` or `years` |
-| `--n-expiries` | `8` | smile slices to draw |
-| `--save-dir` | `.` | where figures are written |
-| `--query DATE STRIKE` | — | print the IV for that date and strike and exit |
-| `--no-plot` | — | compute only, print a summary |
-| `--show` | — | display interactively |
 
 ---
 
@@ -219,32 +183,57 @@ grid = surf.to_grid(n_dte=40, n_moneyness=60, method="linear")
 # dict: moneyness (1-D), dte (1-D days), dates (1-D datetime), iv (2-D [dte, moneyness])
 ```
 
+### IV matrix (strike × tenor)
+
+`to_matrix(...)` returns the surface as a tidy DataFrame — rows are strikes (or
+moneyness), columns are expiries labelled by tenor. `surface_table(...)` returns
+the same DataFrame and, by default, **prints** it (pass `print_table=False` to
+only return it).
+
+```python
+surf.to_matrix(time_axis="years")   # columns: 0.082, 0.164, ... (decimal years)
+surf.to_matrix(time_axis="date")    # columns: '2026-02-04', ...
+surf.to_matrix(time_axis="dte")     # columns: 30, 60, ...
+
+
+v.surface_table(surf, time_axis="date", decimals=4)
+# Expiry  2026-02-04  2026-03-06  2026-04-05  2026-07-04  2027-01-05
+# Strike
+# 70.0        0.3753      0.3813      0.3858      0.3961      0.4110
+# 100.0       0.1893      0.1953      0.1998      0.2101      0.2250
+# 130.0       0.1653      0.1713      0.1758      0.1861      0.2010
+```
+
 ---
 
 ## Plotting (stage 4)
 
 ```python
-v.plot_smile(surface, expiries=None, n_expiries=6, backend="matplotlib",
-             save=None, show=False, moneyness=False, title=None)
-v.plot_surface(surface, backend="matplotlib", time_axis="date",
-               x_axis="moneyness", n_dte=40, n_moneyness=60, method="linear",
-               cmap="viridis", save=None, show=False, title=None)
+v.plot_smile(surface, expiries=None, n_expiries=5, backend=None,
+             layout="grid", save=None, show=False, title=None)
+v.plot_surface(surface, backend=None, n_dte=40, n_moneyness=60,
+               method="linear", cmap="viridis", save=None, show=False,
+               title=None, show_contours=False, atm_marker=True)
 ```
 
 Both accept either a `VolSurface` or a tidy IV DataFrame and return the figure.
 
-- `backend="matplotlib"` → static image (write `.png`/`.pdf`/… via `save=`);
-- `backend="plotly"` → interactive figure (write `.html`; static `.png` needs
-  `kaleido`).
-
-**Time axis** — `time_axis="date"` (default) labels the 3-D time axis with full
-ISO calendar dates (`YYYY-MM-DD`); `"dte"` uses days-to-expiry and `"years"`
-decimal years. `x_axis="moneyness"` (default) or `"strike"`.
+- `backend=None` (default) → plotly when installed, else matplotlib;
+  `backend="plotly"` → interactive figure (write `.html`; a static `.png` needs
+  `kaleido`); `backend="matplotlib"` → static image (`.png`/`.pdf`/…).
+- **Smile** `layout="grid"` (default) draws one panel per expiry (most readable);
+  `layout="overlay"` draws all expiries on one axes with a legend outside.
+- **Surface** is drawn with **time on the x-axis and strike on the y-axis** (decimal
+  years). With the plotly backend, hover shows the calendar date. `show_contours=True`
+  adds z-axis contour projections; `atm_marker=True` adds a red dot at
+  (K=S, mid tenor).
 
 ```python
-v.plot_smile(surf, backend="matplotlib", save="smile.png", moneyness=True)
-v.plot_surface(surf, backend="plotly", time_axis="date",
-               x_axis="strike", save="surface.html")
+v.plot_smile(surf, layout="grid", save="smile.html")            # plotly by default
+v.plot_smile(surf, layout="overlay", backend="matplotlib",
+             save="smile.png")
+v.plot_surface(surf, show_contours=True, atm_marker=True,
+               save="surface.html")
 ```
 
 ---
@@ -257,8 +246,8 @@ it. The figure is stored on `surface.figure` (or `None` when `plot=False`).
 
 ```python
 surf = v.volatility_surface("AAPL", strike_range=(0.8, 1.2),
-                            dte_range=(7, 180), backend="plotly",
-                            save="AAPL_surface.html", plot=True)
+                            dte_range=(7, 180), save="AAPL_surface.html",
+                            plot=True)
 print(surf.iv("2026-03-20", 195.0))
 ```
 
@@ -282,6 +271,8 @@ surf = v.load_surface("AAPL", dte_range=(7, 180))
 | `surf.iv(expiry, strike)` / `surf.iv_moneyness(m, dte)` | interpolated IV (float) |
 | `surf.smile(expiry)` / `surf.term_structure(strike)` | slice DataFrames |
 | `surf.to_grid(...)` | dict of grid arrays |
+| `surf.to_matrix(...)` | strike × tenor IV DataFrame |
+| `surface_table(...)` | IV matrix DataFrame (prints unless `print_table=False`) |
 | `plot_smile(...)` / `plot_surface(...)` | figure |
 | `load_surface(...)` | `VolSurface` |
 | `volatility_smile(...)` / `volatility_surface(...)` | `VolSurface` (+ `surface.figure`) |

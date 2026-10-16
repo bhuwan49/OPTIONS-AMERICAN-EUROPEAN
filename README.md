@@ -49,33 +49,24 @@ costs).
 
 `optnlib.volatility` fetches an option chain (live Yahoo via `yfinance`, or an
 offline synthetic chain), computes implied vols, and plots the **smile** and the
-**3-D surface** (matplotlib or interactive plotly). The 3-D time axis shows full
-ISO calendar dates by default, and the surface can be queried at any expiry and
-strike:
+**3-D surface** (interactive plotly by default, matplotlib fallback). The smile
+is drawn as a grid of per-expiry panels; the surface puts time on the x-axis
+(full ISO dates by default) and can be queried at any expiry and strike:
 
 ```python
 from optnlib import volatility as v
 
 surf = v.volatility_surface("AAPL", strike_range=(0.8, 1.2),
-                            dte_range=(7, 180), backend="plotly",
-                            save="AAPL_surface.html")
+                            dte_range=(7, 180), save="AAPL_surface.html")
 
 surf.iv("2026-03-20", 195.0)      # interpolated IV at an exact date + strike
 surf.iv_moneyness(1.05, dte=45)   # IV at a moneyness + days-to-expiry
 surf.smile("2026-03-20")          # IV vs strike at one expiry
 surf.term_structure(195.0)        # IV vs expiry at one strike
+v.surface_table(surf)             # print the strike x tenor IV matrix
 
 # offline demo (no network needed)
-v.volatility_surface(source="model", backend="plotly",
-                     save="model_surface.html")
-```
-
-Command line:
-
-```bash
-python -m optnlib.volatility --ticker AAPL --mode both
-python -m optnlib.volatility --ticker SPY --backend plotly --save-dir ./out --show
-python -m optnlib.volatility --ticker NVDA --query 2026-03-20 195
+v.volatility_surface(source="model", save="model_surface.html")
 ```
 
 Install the extras with `pip install "optnlib[vol]"`.
@@ -100,8 +91,9 @@ Install the extras with `pip install "optnlib[vol]"`.
   stress testing, Taylor P&L attribution, and delta/gamma/vega (or arbitrary
   greek) hedge solving with descriptive long/short trade output.
 - **Volatility smiles & surfaces** — `optnlib.volatility`: fetch or synthesize an
-  option chain, compute implied vols, and plot/query smiles and 3-D surfaces
-  (matplotlib or plotly, ISO-date time axis), plus a `python -m` CLI.
+  option chain, compute implied vols, and plot/query per-expiry smiles and 3-D
+  surfaces (plotly or matplotlib, decimal-years axis + date-on-hover), with a strike × tenor IV
+  matrix.
 
 ## Installation
 
