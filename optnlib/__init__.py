@@ -4,8 +4,9 @@
 optnlib
 ~~~~~~~
 
-European and American option pricing, implied volatility and greeks, with
-support for continuous dividend yields and discrete cash dividend schedules.
+European and American option pricing, Monte Carlo simulation, implied
+volatility and greeks, with support for continuous dividend yields and discrete
+cash dividend schedules.
 
 Quick start
 -----------
@@ -23,6 +24,9 @@ Quick start
     # Unified entry point
     optnlib.price('p', 100, 100, 1.0, 0.05, 0.2, style='american', method='lr')
 
+    # Monte Carlo European call
+    optnlib.monte_carlo_price('c', 100, 100, 1.0, 0.05, 0.2, seed=42)
+
 See ``EXAMPLES.md`` for runnable examples covering every feature.
 """
 
@@ -33,6 +37,7 @@ from . import (
     european,
     exceptions,
     hedging,
+    monte_carlo,
     volatility,
 )
 from .american import price as american_price
@@ -44,6 +49,7 @@ from .european import (
 )
 from .greeks import delta, gamma, greeks, rho, theta, vega
 from .implied_volatility import implied_volatility
+from .monte_carlo import price as monte_carlo_price
 
 __version__ = "0.1.0"
 
@@ -82,6 +88,7 @@ __all__ = [
     "price",
     "european_price",
     "american_price",
+    "monte_carlo_price",
     "black_scholes",
     "black_scholes_merton",
     "black",
@@ -94,6 +101,7 @@ __all__ = [
     "rho",
     "european",
     "american",
+    "monte_carlo",
     "core",
     "dividends",
     "exceptions",

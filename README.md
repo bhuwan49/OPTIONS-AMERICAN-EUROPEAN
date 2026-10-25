@@ -1,7 +1,8 @@
 # optnlib
 
-European and American option pricing, implied volatility and greeks, with
-support for continuous dividend yields and discrete cash dividend schedules.
+European and American option pricing, Monte Carlo simulation, implied
+volatility and greeks, with support for continuous dividend yields and discrete
+cash dividend schedules.
 
 `optnlib` is a small, dependency-light library (`numpy` + `scipy` only) built on
 top of the modeling conventions of [`py_vollib`](https://github.com/vollib/py_vollib),
@@ -84,6 +85,9 @@ Install the extras with `pip install "optnlib[vol]"`.
   and Black-76 (options on a forward).
 - **American options** — Bjerksund-Stensland (2002) closed-form approximation
   (fast, default), plus Cox-Ross-Rubinstein and Leisen-Reimer binomial trees.
+- **Monte Carlo** — European option pricing by GBM path simulation, with
+  configurable time steps and path count, plus direct matplotlib path
+  visualization.
 - **Dividends** — continuous yield, and discrete cash schedules modeled either
   as *forward* cashflows (default) or *escrowed* present values. Tree engines
   drop discrete dividends at their ex-dates.
@@ -142,9 +146,17 @@ optnlib.price('p', 100, 100, 1.0, 0.05, 0.2, style='american', method='lr')
 # Explicit European API with a discrete dividend
 optnlib.european_price('c', 100, 100, 1.0, 0.05, 0.2, divs=[(0.5, 2.0)])
 # 9.244683623230566
+
+# Monte Carlo European call (252 steps, 10,000 paths)
+optnlib.monte_carlo_price('c', 100, 100, 1.0, 0.05, 0.2, seed=42)
+# 10.557482096687831
+
+# Simulate paths and plot them with matplotlib
+paths = optnlib.monte_carlo.simulate(100, 1.0, 0.05, 0.2, seed=42)
+optnlib.monte_carlo.plot_paths(paths, K=100, t=1.0, save='mc_paths.png')
 ```
 
-See [`EXAMPLES.md`](EXAMPLES.md) for 18 runnable examples covering every feature.
+See [`EXAMPLES.md`](EXAMPLES.md) for 23 runnable examples covering every feature.
 
 ## API overview
 
@@ -158,6 +170,17 @@ See [`EXAMPLES.md`](EXAMPLES.md) for 18 runnable examples covering every feature
 | `black_scholes(flag, S, K, t, r, sigma)` | Black-Scholes |
 | `black_scholes_merton(flag, S, K, t, r, sigma, q=0.0)` | Black-Scholes-Merton |
 | `black(flag, F, K, t, r, sigma)` | Black-76 on a forward `F` |
+
+### Monte Carlo
+
+| Function | Description |
+| --- | --- |
+| `monte_carlo.price(flag, S, K, t, r, sigma, q=0.0, n_steps=252, n_sims=10000, seed=None)` | European Monte Carlo price under GBM |
+| `monte_carlo.simulate(S, t, r, sigma, q=0.0, n_steps=252, n_sims=10000, seed=None)` | Simulated GBM paths, shape `(n_sims, n_steps + 1)` |
+| `monte_carlo.plot_paths(paths, K=None, t=None, n_paths=100, save=None, show=False)` | Matplotlib path visualization |
+
+`optnlib.monte_carlo_price(...)` is a top-level alias for
+`optnlib.monte_carlo.price(...)`.
 
 ### Implied volatility
 
@@ -206,7 +229,10 @@ everything else uses central finite differences. Pass
   ignored (default `None`).
 - `method` — American engine: `'bs2002'` (default), `'crr'` or `'lr'`.
 - `dividend_model` — `'forward'` (default) or `'escrowed'`.
-- `n_steps` — tree steps for `'crr'`/`'lr'` (defaults: `500` CRR, `101` LR).
+- `n_steps` — tree steps for `'crr'`/`'lr'` (defaults: `500` CRR, `101` LR),
+  or Monte Carlo time steps per path (default `252`).
+- `n_sims` — Monte Carlo paths to simulate (default `10,000`).
+- `seed` — optional NumPy generator seed for reproducible Monte Carlo results.
 
 ## Dividend models
 
@@ -271,6 +297,32 @@ dividend exactly at `t` is included.
 | `bs2002` | Bjerksund-Stensland (2002) closed-form approximation. Fast; a lower bound for puts. | n/a |
 | `crr` | Cox-Ross-Rubinstein binomial tree. | 500 |
 | `lr` | Leisen-Reimer binomial tree (Peizer-Pratt inversion). Accurate; recommended tree. | 101 |
+
+## Monte Carlo
+
+`optnlib.monte_carlo` prices European calls and puts by simulating geometric
+Brownian motion paths under the risk-neutral measure with continuous yield `q`.
+Each path uses the exact step
+
+`S_next = S * exp((r - q - sigma**2 / 2) * dt + sigma * sqrt(dt) * Z)`.
+
+`n_steps` sets the number of time steps and `n_sims` the number of paths; both
+default to `252` and `10,000`. Pass `seed` for reproducible results.
+
+```python
+from optnlib import monte_carlo as mc
+
+price = mc.price('c', 100, 100, 1.0, 0.05, 0.2,
+                 n_steps=252, n_sims=100_000, seed=42)
+
+paths = mc.simulate(100, 1.0, 0.05, 0.2, n_steps=252, n_sims=10_000, seed=42)
+mc.plot_paths(paths, K=100, t=1.0, save='mc_paths.png')
+```
+
+Pricing uses numpy only. Plotting requires matplotlib (`pip install
+"optnlib[viz]"`) and is imported lazily, so the pricing API works without it.
+Monte Carlo currently covers European options with continuous yields only;
+American early exercise and discrete dividend schedules use the other engines.
 
 ## Testing
 

@@ -1,7 +1,7 @@
 # optnlib examples
 
-Twenty-one copy-pasteable examples. Each shows a **Parameters** block, the code,
-and the expected output in a comment.
+Twenty-three copy-pasteable examples. Each shows a **Parameters** block, the
+code, and the expected output in a comment.
 
 > All values below were produced with `optnlib==0.1.0` on CPython 3.14.
 > Floating point output can differ in the last few digits across platforms.
@@ -414,4 +414,43 @@ optnlib.european_price('c', 100, 100, 1.0, 0.05, 0.2, divs=[(0.5, 2.0)])
 optnlib.european_price('c', 100, 100, 1.0, 0.05, 0.2,
                        divs=[(0.5, 2.0)], dividend_model='escrowed')
 # 9.244683623230578
+```
+
+---
+
+## Example 22 — Monte Carlo European call
+
+**Parameters**
+
+- `flag = 'c'`, `S = 100`, `K = 100`
+- `t = 1.0`, `r = 0.05`, `sigma = 0.2`
+- `n_steps = 252`, `n_sims = 10_000`, `seed = 42`
+
+```python
+import optnlib
+
+optnlib.monte_carlo_price('c', 100, 100, 1.0, 0.05, 0.2,
+                          n_steps=252, n_sims=10_000, seed=42)
+# 10.557482096687831
+```
+
+---
+
+## Example 23 — Simulate and plot Monte Carlo paths
+
+**Parameters**
+
+- `S = 100`, `t = 1.0`, `r = 0.05`, `sigma = 0.2`
+- `n_steps = 252`, `n_sims = 1_000`, `seed = 42`
+- `K = 100` (strike line)
+
+```python
+from optnlib import monte_carlo as mc
+
+paths = mc.simulate(100, 1.0, 0.05, 0.2, n_steps=252, n_sims=1_000, seed=42)
+paths.shape
+# (1000, 253)
+
+fig = mc.plot_paths(paths, K=100, t=1.0, save='mc_paths.png')
+# saves mc_paths.png and returns a matplotlib Figure
 ```
