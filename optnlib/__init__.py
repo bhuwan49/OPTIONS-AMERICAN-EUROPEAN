@@ -38,6 +38,7 @@ from . import (
     exceptions,
     hedging,
     monte_carlo,
+    stochvol,
     volatility,
 )
 from .american import price as american_price
@@ -102,6 +103,7 @@ __all__ = [
     "european",
     "american",
     "monte_carlo",
+    "stochvol",
     "core",
     "dividends",
     "exceptions",

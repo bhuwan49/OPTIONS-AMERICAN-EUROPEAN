@@ -5,12 +5,12 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "optnlib"
 version = "0.1.0"
-description = "European and American option pricing, Monte Carlo simulation, implied volatility, and greeks for options with continuous or discrete dividends."
+description = "European and American option pricing, Monte Carlo simulation, stochastic volatility, jump diffusion, implied volatility, and greeks for options with continuous or discrete dividends."
 readme = "README.md"
 requires-python = ">=3.9,<3.15"
 license = { text = "MIT" }
 authors = [{ name = "optnlib" }]
-keywords = ["options", "american", "european", "black-scholes", "bjerksund", "monte-carlo", "simulation", "implied-volatility", "greeks", "volatility-smile", "volatility-surface"]
+keywords = ["options", "american", "european", "black-scholes", "bjerksund", "monte-carlo", "simulation", "stochastic-volatility", "heston", "jump-diffusion", "sabr", "bates", "implied-volatility", "greeks", "volatility-smile", "volatility-surface"]
 classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.9",

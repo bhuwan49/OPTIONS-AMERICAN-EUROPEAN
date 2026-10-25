@@ -1,6 +1,6 @@
 # optnlib examples
 
-Twenty-three copy-pasteable examples. Each shows a **Parameters** block, the
+Twenty-five copy-pasteable examples. Each shows a **Parameters** block, the
 code, and the expected output in a comment.
 
 > All values below were produced with `optnlib==0.1.0` on CPython 3.14.
@@ -453,4 +453,62 @@ paths.shape
 
 fig = mc.plot_paths(paths, K=100, t=1.0, save='mc_paths.png')
 # saves mc_paths.png and returns a matplotlib Figure
+```
+
+
+---
+
+## Example 24 ? Heston stochastic volatility
+
+**Parameters**
+
+- `flag = 'c'`, `S = 100`, `K = 100`
+- `t = 1.0`, `r = 0.05`, `q = 0.0`
+- `v0 = 0.04`, `kappa = 2.0`, `theta = 0.04`, `xi = 0.3`, `rho = -0.7`
+- Monte Carlo: `n_steps = 252`, `n_sims = 100_000`, `seed = 42`
+
+```python
+from optnlib import stochvol as sv
+
+model = sv.Heston(v0=0.04, kappa=2.0, theta=0.04, xi=0.3, rho=-0.7)
+
+model.price('c', 100, 100, 1.0, 0.05)
+# 10.394218565021774 (Fourier by default)
+
+result = model.price_mc('c', 100, 100, 1.0, 0.05,
+                        n_steps=252, n_sims=100_000, seed=42)
+result.price, result.std_error
+# (10.414005597566424, 0.03879764677452512)
+
+paths = model.simulate(100, 1.0, 0.05, n_steps=252, n_sims=1_000, seed=42)
+paths.spots.shape, paths.variances.shape
+# ((1000, 253), (1000, 253))
+```
+
+---
+
+## Example 25 ? Jump and SABR pricing
+
+**Parameters**
+
+- Merton: `sigma = 0.2`, `lam = 0.5`, `mu_j = -0.1`, `sigma_j = 0.15`
+- SABR: `alpha = 0.3`, `beta = 1.0`, `rho = -0.4`, `nu = 0.5`
+- European call: `S = 100`, `K = 100`, `t = 1.0`, `r = 0.05`
+
+```python
+from optnlib import stochvol as sv
+
+merton = sv.Merton(sigma=0.2, lam=0.5, mu_j=-0.1, sigma_j=0.15)
+merton.price('c', 100, 100, 1.0, 0.05)
+# 11.661674787326625 (Fourier)
+
+merton.price('c', 100, 100, 1.0, 0.05, method='closed-form')
+# 11.661674787503722 (jump series)
+
+sabr = sv.SABR(alpha=0.3, beta=1.0, rho=-0.4, nu=0.5)
+sabr.price('c', 100, 100, 1.0, 0.05)
+# 14.440201553572937 (Hagan + Black-76)
+
+sabr.implied_vol(105.12710963760242, 100, 1.0)  # 100 * exp(0.05)
+# 0.3055065823952265
 ```

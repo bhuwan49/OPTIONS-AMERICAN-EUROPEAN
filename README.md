@@ -88,6 +88,10 @@ Install the extras with `pip install "optnlib[vol]"`.
 - **Monte Carlo** — European option pricing by GBM path simulation, with
   configurable time steps and path count, plus direct matplotlib path
   visualization.
+- **Stochastic volatility & jumps** — Heston, Hull-White, Stein-Stein, Scott,
+  3/2, SABR, Merton, Kou, and Bates models, with Monte Carlo simulation,
+  Fourier/closed-form pricing where available, and QE/Euler/Milstein/exact
+  discretizations.
 - **Dividends** — continuous yield, and discrete cash schedules modeled either
   as *forward* cashflows (default) or *escrowed* present values. Tree engines
   drop discrete dividends at their ex-dates.
@@ -154,9 +158,15 @@ optnlib.monte_carlo_price('c', 100, 100, 1.0, 0.05, 0.2, seed=42)
 # Simulate paths and plot them with matplotlib
 paths = optnlib.monte_carlo.simulate(100, 1.0, 0.05, 0.2, seed=42)
 optnlib.monte_carlo.plot_paths(paths, K=100, t=1.0, save='mc_paths.png')
+
+# Heston stochastic volatility (Fourier pricing by default)
+from optnlib import stochvol as sv
+heston = sv.Heston(v0=0.04, kappa=2.0, theta=0.04, xi=0.3, rho=-0.7)
+heston.price('c', 100, 100, 1.0, 0.05)
+# 10.394218565021774
 ```
 
-See [`EXAMPLES.md`](EXAMPLES.md) for 23 runnable examples covering every feature.
+See [`EXAMPLES.md`](EXAMPLES.md) for 25 runnable examples covering the main features.
 
 ## API overview
 
@@ -181,6 +191,25 @@ See [`EXAMPLES.md`](EXAMPLES.md) for 23 runnable examples covering every feature
 
 `optnlib.monte_carlo_price(...)` is a top-level alias for
 `optnlib.monte_carlo.price(...)`.
+
+### Stochastic volatility
+
+| Model | Main pricing methods |
+| --- | --- |
+| `stochvol.Heston` | Fourier (default), Monte Carlo |
+| `stochvol.HullWhite` | Monte Carlo |
+| `stochvol.SteinStein` | Monte Carlo |
+| `stochvol.Scott` | Monte Carlo |
+| `stochvol.ThreeHalves` | Monte Carlo |
+| `stochvol.SABR` | Hagan implied volatility (default), Monte Carlo |
+| `stochvol.Merton` | Fourier (default), closed-form series, Monte Carlo |
+| `stochvol.Kou` | Fourier (default), Monte Carlo |
+| `stochvol.Bates` | Fourier (default), Monte Carlo |
+
+Every model exposes `price(...)`, `price_mc(...)`, and `simulate(...)`.
+`price_mc(...)` returns an `MCResult` carrying `.price`, `.std_error`, and
+`.confidence_interval`; `simulate(...)` returns a `SimulationResult` with
+`.spots`, `.variances`, `.times`, and plotting helpers.
 
 ### Implied volatility
 
@@ -323,6 +352,39 @@ Pricing uses numpy only. Plotting requires matplotlib (`pip install
 "optnlib[viz]"`) and is imported lazily, so the pricing API works without it.
 Monte Carlo currently covers European options with continuous yields only;
 American early exercise and discrete dividend schedules use the other engines.
+
+- **Full Monte Carlo guide:** [`MONTE_CARLO_README.md`](MONTE_CARLO_README.md)
+
+## Stochastic volatility & jump models
+
+`optnlib.stochvol` adds stochastic-volatility and jump-diffusion models with a
+shared simulation/pricing interface:
+
+```python
+from optnlib import stochvol as sv
+
+model = sv.Heston(v0=0.04, kappa=2.0, theta=0.04, xi=0.3, rho=-0.7)
+
+# Fourier pricing (default when a characteristic function is available)
+model.price('c', 100, 100, 1.0, 0.05)
+
+# Monte Carlo with standard error and reproducible paths
+result = model.price_mc('c', 100, 100, 1.0, 0.05,
+                        n_steps=252, n_sims=100_000, seed=42)
+result.price, result.std_error
+
+paths = model.simulate(100, 1.0, 0.05, n_steps=252, n_sims=10_000, seed=42)
+paths.plot(K=100, t=1.0, save='heston_paths.png')
+paths.plot_variance(save='heston_variance.png')
+```
+
+Phase 1 models: Heston, Hull-White, Stein-Stein, Scott, 3/2, SABR, Merton,
+Kou, and Bates. Simulation schemes include Euler, Milstein, QE for Heston/CIR
+variance, exact OU steps, and exact Poisson jumps. Fourier and closed-form
+pricing are available where the model permits; otherwise Monte Carlo is used.
+
+- **Full stochastic-volatility guide:** [`STOCHASTIC_VOLATILITY_README.md`](STOCHASTIC_VOLATILITY_README.md)
+- **Which model should I use?** [`MODEL_SELECTION_README.md`](MODEL_SELECTION_README.md)
 
 ## Testing
 
